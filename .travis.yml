@@ -7,7 +7,7 @@ before_install:
   - go get github.com/tools/godep
 script:
   - go install
-  - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o goat-linux-amd64 .
+  - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o fbarrel-linux-amd64 .
 deploy:
   provider: releases
   api_key: $GITHUB_TOKEN
