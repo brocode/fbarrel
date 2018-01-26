@@ -1,0 +1,12 @@
+{
+	"ImportPath": "github.com/brocode/fbarrel",
+	"GoVersion": "go1.9",
+	"GodepVersion": "v79",
+	"Deps": [
+		{
+			"ImportPath": "github.com/jessevdk/go-flags",
+			"Comment": "v1.3.0-5-gf88afde",
+			"Rev": "f88afde2fa19a30cf50ba4b05b3d13bc6bae3079"
+		}
+	]
+}
