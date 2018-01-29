@@ -63,8 +63,8 @@ func writeBarrel(ts_path string, files []os.FileInfo) error {
 
 	for _, f := range files {
 		var name = f.Name()
-		if(strings.HasPrefix(name, ".") || ! strings.HasSuffix(name, ".ts") || name == "barrel.ts"){ continue }
-		name_without_ext := name[0:strings.LastIndex(name, ".ts")]
+		if(strings.HasPrefix(name, ".") || ! strings.HasSuffix(name, ".tsx") || name == "barrel.ts"){ continue }
+		name_without_ext := name[0:strings.LastIndex(name, ".tsx")]
 		fmt.Printf("Writing to barrel for %s (%s)\n", name_without_ext, name)
 		_, err = w.WriteString(fmt.Sprintf("export * from './%s';\n", name_without_ext)); if err != nil {
 			return err

@@ -3,8 +3,8 @@
 Given 
 
 ```
-test/a.ts (export function fkbr(){})
-test/b.ts (export class Yolo{})
+test/a.tsx (export function fkbr(){})
+test/b.tsx (export class Yolo{})
 ```
 
 then running `fbarrel -n cool -p test` will write
