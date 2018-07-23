@@ -30,16 +30,18 @@ func main() {
 
 	files,err := listFiles(opts.Path)
 	fatal(err)
-	err = writeBarrel(opts.Path, files)
+  dir, err := os.Getwd()
+	fatal(err)
+	err = writeBarrel(dir, opts.Path, files)
 	fatal(err)
 
-	err = writeNamespace(opts.Name, opts.Path)
+	err = writeNamespace(opts.Name, dir)
 
 	os.Exit(0)
 }
 
-func writeNamespace(name string, ts_path string) error {
-	fd, err := os.Create(path.Join(ts_path, fmt.Sprintf("%s.ts", name))); if err != nil {
+func writeNamespace(name string, out_path string) error {
+	fd, err := os.Create(path.Join(out_path, fmt.Sprintf("%s.ts", name))); if err != nil {
 		return err
 	}
 	namespace := strings.Title(name)
@@ -54,8 +56,8 @@ func writeNamespace(name string, ts_path string) error {
 	return nil
 }
 
-func writeBarrel(ts_path string, files []os.FileInfo) error {
-	fd, err := os.Create(path.Join(ts_path, "barrel.ts")); if err != nil {
+func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
+	fd, err := os.Create(path.Join(out_path, "barrel.ts")); if err != nil {
 		return err
 	}
 	defer fd.Close()
@@ -67,7 +69,7 @@ func writeBarrel(ts_path string, files []os.FileInfo) error {
 		name_without_ext := name[0:strings.LastIndex(name, ".tsx")]
 		default_name := strings.Title(strings.Replace(strings.Replace(name_without_ext, "_", "", -1), "-", "", -1))
 		fmt.Printf("Writing to barrel for %s (%s)\n", name_without_ext, name)
-		_, err = w.WriteString(fmt.Sprintf("import %s from './%s';\n", default_name, name_without_ext)); if err != nil {
+		_, err = w.WriteString(fmt.Sprintf("import %s from './%s';\n", default_name, ts_path + "/" + name_without_ext)); if err != nil {
 			return err
 		}
 		_, err = w.WriteString(fmt.Sprintf("export { %s };\n", default_name)); if err != nil {
