@@ -114,8 +114,9 @@ func extractExports(content string) mapset.Set {
 	exports := mapset.NewSet();
 
 	defaultResult := regexp.MustCompile(`export default (class|interface|type )?(\w+)`).FindAllStringSubmatch(content, -1)
-	exports.Add(defaultResult[0][2])
-
+	for _, value := range defaultResult {
+		exports.Add(value[2])
+	}
 
 	regularResult := regexp.MustCompile(`export (class|interface|type) (\w+)`).FindAllStringSubmatch(content, -1)
 	for _, value := range regularResult {
