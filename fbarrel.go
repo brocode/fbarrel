@@ -74,15 +74,26 @@ func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
 			return err;
 		}
 
-		extractExports(string(content[:]));
+		exports := extractExports(string(content[:]));
+
+		exportList := ""
+		first := true;
+
+		for ex := range exports.Iterator().C {
+			if first {
+				exportList = ex.(string)
+				first = false;
+			} else {
+				exportList = exportList + ", " + ex.(string);
+			}
+		}
 
 		name_without_ext := name[0:strings.LastIndex(name, ".tsx")]
-		default_name := strings.Title(strings.Replace(strings.Replace(name_without_ext, "_", "", -1), "-", "", -1))
 		fmt.Printf("Writing to barrel for %s (%s)\n", name_without_ext, name)
-		_, err = w.WriteString(fmt.Sprintf("import %s from './%s';\n", default_name, ts_path + "/" + name_without_ext)); if err != nil {
+		_, err = w.WriteString(fmt.Sprintf("import %s from './%s';\n", exportList, ts_path + "/" + name_without_ext)); if err != nil {
 			return err
 		}
-		_, err = w.WriteString(fmt.Sprintf("export { %s };\n", default_name)); if err != nil {
+		_, err = w.WriteString(fmt.Sprintf("export { %s };\n", exportList)); if err != nil {
 			return err
 		}
 	}
@@ -99,20 +110,17 @@ func listFiles(ts_path string) ([]os.FileInfo, error) {
 	return files,nil
 }
 
-func extractExports(content string) Set {
+func extractExports(content string) mapset.Set {
 	exports := mapset.NewSet();
 
 	defaultResult := regexp.MustCompile(`export default (class|interface|type )?(\w+)`).FindAllStringSubmatch(content, -1)
-	for _, value := range defaultResult {
-		exports.Add(value[2])
-	}
+	exports.Add(defaultResult[0][2])
+
 
 	regularResult := regexp.MustCompile(`export (class|interface|type) (\w+)`).FindAllStringSubmatch(content, -1)
 	for _, value := range regularResult {
 		if !exports.Contains(value[2]) && value[2] != "Props" && value[2] != "State" { exports.Add(value[2]) }
 	}
-
-	fmt.Println(exports);
 
 	return exports
 }
