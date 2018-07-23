@@ -8,6 +8,9 @@ import (
 	"bufio"
 	"path"
 	"strings"
+	"regexp"
+	"Set"
+	"github.com/deckarep/golang-set"
 )
 
 type opts struct {
@@ -48,7 +51,6 @@ func writeNamespace(name string, out_path string) error {
 	fmt.Printf("Writing namespace { %s }\n", namespace)
 	defer fd.Close()
 	w := bufio.NewWriter(fd)
-
 		_, err = w.WriteString(fmt.Sprintf("import * as %s from './barrel';\nexport { %s };\n", namespace, namespace)); if err != nil {
 			return err
 		}
@@ -65,7 +67,16 @@ func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
 
 	for _, f := range files {
 		var name = f.Name()
+
 		if(strings.HasPrefix(name, ".") || ! strings.HasSuffix(name, ".tsx") || name == "barrel.ts"){ continue }
+
+		content, err := ioutil.ReadFile(ts_path + "/" + f.Name())
+		if err != nil {
+			return err;
+		}
+
+		extractExports(string(content[:]));
+
 		name_without_ext := name[0:strings.LastIndex(name, ".tsx")]
 		default_name := strings.Title(strings.Replace(strings.Replace(name_without_ext, "_", "", -1), "-", "", -1))
 		fmt.Printf("Writing to barrel for %s (%s)\n", name_without_ext, name)
@@ -87,4 +98,22 @@ func listFiles(ts_path string) ([]os.FileInfo, error) {
 		return nil,err
 	}
 	return files,nil
+}
+
+func extractExports(content string) Set {
+	exports := mapset.NewSet();
+
+	defaultResult := regexp.MustCompile(`export default (class|interface|type )?(\w+)`).FindAllStringSubmatch(content, -1)
+	for _, value := range defaultResult {
+		exports.Add(value[2])
+	}
+
+	regularResult := regexp.MustCompile(`export (class|interface|type) (\w+)`).FindAllStringSubmatch(content, -1)
+	for _, value := range regularResult {
+		if !exports.Contains(value[2]) && value[2] != "Props" && value[2] != "State" { exports.Add(value[2]) }
+	}
+
+	fmt.Println(exports);
+
+	return exports
 }
