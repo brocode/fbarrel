@@ -9,7 +9,6 @@ import (
 	"path"
 	"strings"
 	"regexp"
-	"Set"
 	"github.com/deckarep/golang-set"
 )
 
