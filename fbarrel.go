@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"bufio"
 	"path"
+	"sort"
 	"strings"
 	"regexp"
 	"github.com/deckarep/golang-set"
@@ -14,7 +15,6 @@ import (
 
 type opts struct {
 	Path string `short:"p" long:"path" description:"Path to typescript folder where barrel should be created" required:"true"`
-	Name string `short:"n" long:"name" description:"Name of barrel (omit .ts) - will be uppercased for namespace name" required:"true"`
 }
 
 func fatal(err error){
@@ -37,24 +37,7 @@ func main() {
 	err = writeBarrel(dir, opts.Path, files)
 	fatal(err)
 
-	err = writeNamespace(opts.Name, dir)
-
 	os.Exit(0)
-}
-
-func writeNamespace(name string, out_path string) error {
-	fd, err := os.Create(path.Join(out_path, fmt.Sprintf("%s.ts", name))); if err != nil {
-		return err
-	}
-	namespace := strings.Title(name)
-	fmt.Printf("Writing namespace { %s }\n", namespace)
-	defer fd.Close()
-	w := bufio.NewWriter(fd)
-		_, err = w.WriteString(fmt.Sprintf("import * as %s from './barrel';\nexport { %s };\n", namespace, namespace)); if err != nil {
-			return err
-		}
-	w.Flush()
-	return nil
 }
 
 func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
@@ -75,31 +58,35 @@ func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
 		}
 
 		exports := extractExports(string(content[:]));
+    sortedExports := setToSortedArray(exports)
 
 		exportList := ""
-		first := true;
-
-		for ex := range exports.Iterator().C {
-			if first {
-				exportList = ex.(string)
-				first = false;
+		for i,ex := range sortedExports {
+			if i==0 {
+				exportList = ex
 			} else {
-				exportList = exportList + ", " + ex.(string);
+				exportList = exportList + ", " + ex;
 			}
 		}
 
 		name_without_ext := name[0:strings.LastIndex(name, ".tsx")]
 		fmt.Printf("Writing to barrel for %s (%s)\n", name_without_ext, name)
-		_, err = w.WriteString(fmt.Sprintf("import %s from './%s';\n", exportList, ts_path + "/" + name_without_ext)); if err != nil {
-			return err
-		}
-		_, err = w.WriteString(fmt.Sprintf("export { %s };\n", exportList)); if err != nil {
+		_, err = w.WriteString(fmt.Sprintf("export { %s }  from './%s';\n", exportList, ts_path + "/" + name_without_ext)); if err != nil {
 			return err
 		}
 	}
 	w.Flush()
 
 	return nil
+}
+
+func setToSortedArray(set mapset.Set) []string {
+	var setArray []string
+	for item := range set.Iterator().C {
+    setArray = append(setArray, item.(string));
+	}
+	sort.Strings(setArray)
+	return setArray;
 }
 
 func listFiles(ts_path string) ([]os.FileInfo, error) {
@@ -112,15 +99,23 @@ func listFiles(ts_path string) ([]os.FileInfo, error) {
 
 func extractExports(content string) mapset.Set {
 	exports := mapset.NewSet();
+  defaultExportName := ""
 
 	defaultResult := regexp.MustCompile(`export default (class|interface|type )?(\w+)`).FindAllStringSubmatch(content, -1)
 	for _, value := range defaultResult {
-		exports.Add(value[2])
+		defaultExportName = value[2]
+		exports.Add("default as " + value[2])
 	}
 
 	regularResult := regexp.MustCompile(`export (class|interface|type) (\w+)`).FindAllStringSubmatch(content, -1)
 	for _, value := range regularResult {
-		if !exports.Contains(value[2]) && value[2] != "Props" && value[2] != "State" { exports.Add(value[2]) }
+		if !exports.Contains(value[2]) && value[2] != defaultExportName {
+			if value[2] != "Props" && value[2] != "State" {
+				exports.Add(value[2])
+			} else if (value[2] == "Props" || value[2] == "State") && defaultExportName != "" {
+				exports.Add(value[2] + " as " + defaultExportName+value[2])
+			}
+	  }
 	}
 
 	return exports
