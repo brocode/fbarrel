@@ -15,7 +15,19 @@ import (
 
 type opts struct {
 	Path string `short:"p" long:"path" description:"Path to typescript folder where barrel should be created" required:"true"`
+	Recursive bool `short:"r" long:"recursive" description:"Scans given directory recursively" required:"false"`
 }
+
+func toFullPath(path string, files []os.FileInfo) []string {
+	var result []string;
+
+	for _,file := range files {
+		result = append(result, path + file.Name());
+	}
+
+	return result;
+}
+
 
 func fatal(err error){
 	if err != nil {
@@ -30,7 +42,7 @@ func main() {
 	_, err := flags.Parse(&opts)
 	fatal(err)
 
-	files,err := listFiles(opts.Path)
+	files,err := listFiles(opts.Path, opts.Recursive)
 	fatal(err)
   dir, err := os.Getwd()
 	fatal(err)
@@ -40,7 +52,7 @@ func main() {
 	os.Exit(0)
 }
 
-func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
+func writeBarrel(out_path string, ts_path string, files []string) error {
 	fd, err := os.Create(path.Join(out_path, "barrel.ts")); if err != nil {
 		return err
 	}
@@ -48,11 +60,11 @@ func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
 	w := bufio.NewWriter(fd)
 
 	for _, f := range files {
-		var name = f.Name()
+		var name = f
 
-		if(strings.HasPrefix(name, ".") || ! strings.HasSuffix(name, ".tsx") || name == "barrel.ts"){ continue }
+		if(! strings.HasSuffix(name, ".tsx") || strings.Contains(name, "barrel.ts") ){ continue }
 
-		content, err := ioutil.ReadFile(ts_path + "/" + f.Name())
+		content, err := ioutil.ReadFile(f)
 		if err != nil {
 			return err;
 		}
@@ -69,10 +81,12 @@ func writeBarrel(out_path string, ts_path string, files []os.FileInfo) error {
 			}
 		}
 
-		name_without_ext := name[0:strings.LastIndex(name, ".tsx")]
-		fmt.Printf("Writing to barrel for %s (%s)\n", name_without_ext, name)
-		_, err = w.WriteString(fmt.Sprintf("export { %s }  from './%s';\n", exportList, ts_path + "/" + name_without_ext)); if err != nil {
-			return err
+		if exportList != "" {
+			name_without_ext := name[0:strings.LastIndex(name, ".tsx")]
+			fmt.Printf("Writing to barrel for %s (%s)\n", name_without_ext, name)
+			_, err = w.WriteString(fmt.Sprintf("export { %s }  from '%s';\n", exportList, name_without_ext)); if err != nil {
+				return err
+			}
 		}
 	}
 	w.Flush()
@@ -89,12 +103,32 @@ func setToSortedArray(set mapset.Set) []string {
 	return setArray;
 }
 
-func listFiles(ts_path string) ([]os.FileInfo, error) {
+func listFiles(ts_path string, recursive bool) ([]string, error) {
+	var result []string;
 	files, err := ioutil.ReadDir(ts_path)
+
 	if err != nil {
 		return nil,err
 	}
-	return files,nil
+
+	if recursive {
+		for _, file := range files {
+			if(file.IsDir()) {
+				fmt.Printf("Scanning folder %s\n", file.Name())
+				recResult, recError := listFiles(ts_path + "/" + file.Name(), true);
+				if recError != nil {
+					fatal(recError);
+				}
+				result = append(result, recResult...)
+			} else {
+				result = append(result, ts_path +"/"+ file.Name())
+			}
+		}
+	} else {
+		result = toFullPath(ts_path, files);
+	}
+
+	return result,nil
 }
 
 func extractExports(content string) mapset.Set {
